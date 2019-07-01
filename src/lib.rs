@@ -14,16 +14,16 @@ pub enum Error {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ServerAuthResponse {
-    id: String,
-    name: String,
-    properties: Vec<ServerAuthProperty>,
+    pub id: String,
+    pub name: String,
+    pub properties: Vec<ServerAuthProperty>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ServerAuthProperty {
-    name: String,
-    value: String,
-    signature: String,
+    pub name: String,
+    pub value: String,
+    pub signature: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
