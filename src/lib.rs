@@ -48,7 +48,7 @@ pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthRespon
 
     trace!("Authentication response: {}", res.text().unwrap());
 
-    let res: ServerAuthResponse = res.json().map_err(|_| AuthError::RequestFailed)?;
+    let res: ServerAuthResponse = res.json().unwrap();
 
     Ok(res)
 }
