@@ -36,7 +36,7 @@ pub enum AuthError {
 
 pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthResponse, AuthError> {
     let url = format!(
-        "https://sessionserver.mojang.com/session/minecraft/hashJoined?username={}&serverId={}",
+        "https://sessionserver.mojang.com/session/minecraft/hasJoined?username={}&serverId={}",
         username, server_hash
     );
     let client = Client::new();
