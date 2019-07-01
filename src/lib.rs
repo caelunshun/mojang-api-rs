@@ -46,9 +46,10 @@ pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthRespon
         .send()
         .map_err(|_| AuthError::RequestFailed)?;
 
-    trace!("Authentication response: {}", res.text().unwrap());
+    let text = res.text().map_err(|_| AuthError::AuthFailed)?;
+    trace!("Authentication response: {}", test);
 
-    let res: ServerAuthResponse = res.json().unwrap();
+    let res: ServerAuthResponse = serde_json::from_str(&text).map_err(|_| AuthError::AuthFailed);
 
     Ok(res)
 }
