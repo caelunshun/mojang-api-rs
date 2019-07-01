@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate log;
 
 use num_bigint::BigInt;
 use openssl::sha::Sha1;
@@ -43,6 +45,9 @@ pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthRespon
         .get(&url)
         .send()
         .map_err(|_| AuthError::RequestFailed)?;
+
+    trace!("Authentication response: {}", res.text().unwrap());
+
     let res: ServerAuthResponse = res.json().map_err(|_| AuthError::RequestFailed)?;
 
     Ok(res)
