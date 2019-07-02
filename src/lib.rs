@@ -68,7 +68,7 @@ pub enum AuthError {
 }
 
 /// Performs a server-side authentication request as documented
-/// at wiki.vg/Authentication_scheme. `server_hash` can be obtained
+/// at wiki.vg/Authentication. `server_hash` can be obtained
 /// by calling `server_hash()`.
 pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthResponse, AuthError> {
     let url = format!(
