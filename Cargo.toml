@@ -1,8 +1,13 @@
 [package]
-name = "mojang_api"
+name = "mojang-api"
 version = "0.1.0"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
+description = "A simple library for interfacing with the Mojang API. Currently incomplete but functional."
+repository = "https://github.com/caelunshun/mojang-api-rs"
+readme = "README.md"
+keywords = ["minecraft"]
+license = "MIT/Apache 2.0"
 
 [dependencies]
 reqwest = { version = "0.9", features = ["default-tls-vendored"] }
