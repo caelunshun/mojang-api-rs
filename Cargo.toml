@@ -1,24 +1,24 @@
 [package]
 name = "mojang-api"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
-description = "A simple library for interfacing with the Mojang API. Currently incomplete but functional."
+description = "A simple library for interfacing with the Mojang API. Includes full support for async/await syntax."
 repository = "https://github.com/caelunshun/mojang-api-rs"
 readme = "README.md"
+categories = ["api-bindings"]
 keywords = ["minecraft"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-reqwest = { version = "0.9", features = ["default-tls-vendored"] }
-log = "0.4"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-uuid = "0.7"
-lazy_static = "1.3"
-openssl = { version = "0.10", features = ["vendored"] }
+sha1 = "0.6"
 num-bigint = "0.2"
+futures-preview = { version = "0.3.0-alpha.17", features = ["compat"] }
+reqwest = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+uuid = { version = "0.7", features = ["v4", "serde"] }
 
 [dev-dependencies]
-mockito = "0.17.1"
+mockito = "0.20"
+serde_json = "1.0"
+tokio = { git = "https://github.com/tokio-rs/tokio" }
