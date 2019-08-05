@@ -3,7 +3,7 @@ name = "mojang-api"
 version = "0.2.0"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
-description = "A simple library for interfacing with the Mojang API. Includes full support for async/await syntax."
+description = "A simple library for interfacing with the Mojang API. Includes full support for async/await."
 repository = "https://github.com/caelunshun/mojang-api-rs"
 readme = "README.md"
 categories = ["api-bindings"]
@@ -13,10 +13,12 @@ license = "MIT/Apache-2.0"
 [dependencies]
 sha1 = "0.6"
 num-bigint = "0.2"
-futures-preview = { version = "0.3.0-alpha.17", features = ["compat"] }
-reqwest = "0.9"
+hyper = { git = "https://github.com/hyperium/hyper" }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 uuid = { version = "0.7", features = ["v4", "serde"] }
+bytes = "0.4"
+hyper-tls = { git = "https://github.com/hyperium/hyper-tls" }
 
 [dev-dependencies]
 mockito = "0.20"
