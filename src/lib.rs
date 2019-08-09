@@ -58,10 +58,11 @@ type StdResult<T, E> = std::result::Result<T, E>;
 
 /// Result type used by this crate. This is equivalent
 /// to `std::result::Result<T, mojang_api::Error>`.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = StdResult<T, Error>;
 
 /// Error type for this crate.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Indicates that an IO error occurred.
     Io(io::Error),

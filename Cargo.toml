@@ -22,5 +22,4 @@ hyper-tls = { git = "https://github.com/hyperium/hyper-tls" }
 
 [dev-dependencies]
 mockito = "0.20"
-serde_json = "1.0"
 tokio = { git = "https://github.com/tokio-rs/tokio" }
