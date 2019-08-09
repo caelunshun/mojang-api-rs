@@ -7,11 +7,9 @@
 
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate log;
 
 use num_bigint::BigInt;
-use openssl::sha::Sha1;
+use sha1::Sha1;
 
 use reqwest::Client;
 
@@ -83,7 +81,6 @@ pub fn server_auth(username: &str, server_hash: &str) -> Result<ServerAuthRespon
         .map_err(|_| AuthError::RequestFailed)?;
 
     let text = res.text().map_err(|_| AuthError::AuthFailed)?;
-    trace!("Authentication response: {}", text);
 
     let res: ServerAuthResponse = serde_json::from_str(&text).map_err(|_| AuthError::AuthFailed)?;
 
@@ -104,7 +101,7 @@ pub fn server_hash(server_id: &str, shared_secret: [u8; 16], pub_key: &[u8]) -> 
 }
 
 fn mc_hexdigest(hasher: Sha1) -> String {
-    let output = hasher.finish();
+    let output = hasher.digest().bytes();
 
     let bigint = BigInt::from_signed_bytes_be(&output);
     format!("{:x}", bigint)

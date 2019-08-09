@@ -1,24 +1,22 @@
 [package]
 name = "mojang-api"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
-description = "A simple library for interfacing with the Mojang API. Currently incomplete but functional."
+description = "A simple library for interfacing with the Mojang API."
 repository = "https://github.com/caelunshun/mojang-api-rs"
 readme = "README.md"
 keywords = ["minecraft"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-reqwest = { version = "0.9" }
-log = "0.4"
+reqwest = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 uuid = "0.7"
-lazy_static = "1.3"
-openssl = { version = "0.10" }
+sha1 = "0.6"
 num-bigint = "0.2"
 
 [dev-dependencies]
-mockito = "0.19.0"
+mockito = "0.20.0"
