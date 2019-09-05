@@ -38,7 +38,6 @@
 //! # }
 //! ```
 
-#![feature(async_await)]
 #![forbid(unsafe_code, missing_docs, missing_debug_implementations, warnings)]
 #![doc(html_root_url = "https://docs.rs/mojang-api/0.2.0")]
 
@@ -62,7 +61,6 @@ pub type Result<T> = StdResult<T, Error>;
 
 /// Error type for this crate.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Error {
     /// Indicates that an IO error occurred.
     Io(io::Error),
@@ -170,7 +168,7 @@ pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuth
         server_hash
     );
 
-    let connector = HttpsConnector::new(1).unwrap();
+    let connector = HttpsConnector::new().unwrap();
 
     let client = Client::builder().build::<_, Body>(connector);
     let response = client
