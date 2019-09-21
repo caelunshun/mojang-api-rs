@@ -16,7 +16,6 @@
 //! # Examples
 //! Authenticating a client on a server:
 //! ```no_run
-//! #![feature(async_await)]
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), mojang_api::Error> {
 //! # let shared_secret = [0; 16];
@@ -140,7 +139,6 @@ pub struct ProfileProperty {
 ///
 /// # Examples
 /// ```no_run
-/// #![feature(async_await)]
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), mojang_api::Error> {
 /// # fn server_hash() -> String { "".to_string() }
