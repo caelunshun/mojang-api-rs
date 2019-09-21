@@ -1,6 +1,6 @@
 [package]
 name = "mojang-api"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
 description = "A simple library for interfacing with the Mojang API. Includes full support for async/await."
