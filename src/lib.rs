@@ -204,12 +204,23 @@ pub fn server_hash(server_id: &str, shared_secret: [u8; 16], pub_key: &[u8]) -> 
     hasher.update(&shared_secret);
     hasher.update(pub_key);
 
-    mc_hexdigest(hasher)
+    hexdigest(&hasher)
 }
 
 /// Generates a digest for the given hasher using
-/// Minecraft's abnormal method.
-fn mc_hexdigest(hasher: Sha1) -> String {
+/// Minecraft's unorthodox hex digestion method.
+///
+/// # Examples
+/// ```
+/// use sha1::Sha1;
+/// let mut hasher = Sha1::new();
+/// hasher.update(b"Notch");
+/// assert_eq!(
+///    mojang_api::hexdigest(&hasher),
+///    "4ed1f46bbe04bc756bcb17c0c7ce3e4632f06a48"
+/// );
+/// ```
+pub fn hexdigest(hasher: &Sha1) -> String {
     let output = hasher.digest().bytes();
 
     let bigint = BigInt::from_signed_bytes_be(&output);
@@ -242,21 +253,21 @@ mod tests {
         let mut hasher = Sha1::new();
         hasher.update(b"Notch");
         assert_eq!(
-            mc_hexdigest(hasher),
+            hexdigest(&hasher),
             "4ed1f46bbe04bc756bcb17c0c7ce3e4632f06a48"
         );
 
         let mut hasher = Sha1::new();
         hasher.update(b"jeb_");
         assert_eq!(
-            mc_hexdigest(hasher),
+            hexdigest(&hasher),
             "-7c9d5b0044c130109a5d7b5fb5c317c02b4e28c1"
         );
 
         let mut hasher = Sha1::new();
         hasher.update(b"simon");
         assert_eq!(
-            mc_hexdigest(hasher),
+            hexdigest(&hasher),
             "88e16a1019277b15d58faf0541e11910eb756f6"
         );
     }
