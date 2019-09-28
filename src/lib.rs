@@ -40,10 +40,9 @@
 #![forbid(unsafe_code, missing_docs, missing_debug_implementations, warnings)]
 #![doc(html_root_url = "https://docs.rs/mojang-api/0.2.0")]
 
-use bytes::Buf;
-use hyper::{Body, Client};
-use hyper_tls::HttpsConnector;
+use log::trace;
 use num_bigint::BigInt;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use std::fmt;
@@ -64,7 +63,7 @@ pub enum Error {
     /// Indicates that an IO error occurred.
     Io(io::Error),
     /// Indicates that an HTTP error occurred.
-    Http(hyper::Error),
+    Http(reqwest::Error),
     /// Indicates that the UTF8 bytes failed to parse.
     Utf8(FromUtf8Error),
     /// Indicates that the response included malformed JSON.
@@ -154,8 +153,8 @@ pub struct ProfileProperty {
 /// ```
 pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuthResponse> {
     #[cfg(not(test))]
-    let url = format!(
-        "https://sessionserver.mojang.com/session/minecraft/hasJoined?username={}&server_id={}",
+        let url = format!(
+        "https://sessionserver.mojang.com/session/minecraft/hasJoined?username={}&serverId={}&unsigned=false",
         username, server_hash
     );
     #[cfg(test)]
@@ -166,20 +165,20 @@ pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuth
         server_hash
     );
 
-    let connector = HttpsConnector::new().unwrap();
-
-    let client = Client::builder().build::<_, Body>(connector);
-    let response = client
-        .get(url.parse().unwrap())
+    let string = Client::new()
+        .get(&url)
+        .send()
         .await
-        .map_err(Error::Http)?;
+        .map_err(|e| Error::Http(e))?
+        .text()
+        .await
+        .map_err(|e| Error::Http(e))?;
 
-    let mut body = response.into_body();
+    trace!("Authentication response: {}", string);
 
-    let response = body_to_string(&mut body).await?;
-    let json: ServerAuthResponse = serde_json::from_str(&response).map_err(Error::Json)?;
+    let response = serde_json::from_str(&string).map_err(|e| Error::Json(e))?;
 
-    Ok(json)
+    Ok(response)
 }
 
 /// Computes the "server hash" required for authentication
@@ -223,22 +222,6 @@ pub fn hexdigest(hasher: &Sha1) -> String {
 
     let bigint = BigInt::from_signed_bytes_be(&output);
     format!("{:x}", bigint)
-}
-
-/// Reads a `Body` into a string.
-async fn body_to_string(body: &mut Body) -> Result<String> {
-    let mut s = String::new();
-
-    while let Some(next) = body.next().await {
-        let mut chunk = next.map_err(Error::Http)?;
-        let mut vec = vec![0; chunk.len()];
-        chunk.copy_to_slice(&mut vec);
-
-        let string = String::from_utf8(vec).map_err(Error::Utf8)?;
-        s.push_str(&string);
-    }
-
-    Ok(s)
 }
 
 #[cfg(test)]
@@ -291,6 +274,8 @@ mod tests {
             id: uuid,
             properties: vec![prop],
         };
+
+        println!("{}", serde_json::to_string(&response).unwrap());
 
         let _m = mockito::mock("GET", "/")
             .with_body(serde_json::to_string(&response).unwrap())
