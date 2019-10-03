@@ -11,7 +11,7 @@ keywords = ["minecraft"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-reqwest = { git = "https://github.com/seanmonstar/reqwest", rev = "ebe57e10a38cfbc0b176285718d7b3d411133122" }
+reqwest = { git = "https://github.com/seanmonstar/reqwest", rev = "5b55aee1a9ddf785f82d9086c8befc50db268cb8" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = "0.6"
@@ -22,4 +22,4 @@ log = "0.4"
 
 [dev-dependencies]
 mockito = "0.20"
-tokio = "0.2.0-alpha.5"
+tokio = "0.2.0-alpha.6"
