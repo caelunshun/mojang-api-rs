@@ -38,7 +38,7 @@
 //! ```
 
 #![forbid(unsafe_code, missing_docs, missing_debug_implementations, warnings)]
-#![doc(html_root_url = "https://docs.rs/mojang-api/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/mojang-api/0.4.0")]
 
 use log::trace;
 use num_bigint::BigInt;
