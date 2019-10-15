@@ -181,14 +181,14 @@ pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuth
         .get(&url)
         .send()
         .await
-        .map_err(|e| Error::Http(e))?
+        .map_err(Error::Http)?
         .text()
         .await
-        .map_err(|e| Error::Http(e))?;
+        .map_err(Error::Http)?;
 
     trace!("Authentication response: {}", string);
 
-    let response = serde_json::from_str(&string).map_err(|e| Error::Json(e))?;
+    let response = serde_json::from_str(&string).map_err(Error::Json)?;
 
     Ok(response)
 }
