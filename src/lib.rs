@@ -104,7 +104,7 @@ impl std::error::Error for Error {}
 /// The response includes the player's UUID, username,
 /// and optionally some `ProfileProperty`s, which may
 /// represent, for example, the player's skin.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerAuthResponse {
     /// The UUID of the player.
     pub id: Uuid,
@@ -123,7 +123,7 @@ pub struct ServerAuthResponse {
 ///
 /// Note that both `value` and `signature` are base64-encoded
 /// strings.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProfileProperty {
     /// The name of this profile property.
     pub name: String,
