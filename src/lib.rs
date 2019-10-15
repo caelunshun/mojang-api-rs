@@ -84,6 +84,18 @@ impl Display for Error {
     }
 }
 
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Error::Io(e1), Error::Io(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Http(e1), Error::Http(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Utf8(e1), Error::Utf8(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Json(e1), Error::Json(e2)) => e1.to_string() == e2.to_string(),
+            _ => false,
+        }
+    }
+}
+
 impl std::error::Error for Error {}
 
 /// Represents the response received when performing
@@ -227,6 +239,19 @@ pub fn hexdigest(hasher: &Sha1) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::ErrorKind;
+
+    #[test]
+    fn test_error_equality() {
+        assert_eq!(
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error")),
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error"))
+        );
+        assert_ne!(
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error")),
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Different test error"))
+        );
+    }
 
     #[test]
     fn test_hexdigest() {
