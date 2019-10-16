@@ -84,6 +84,18 @@ impl Display for Error {
     }
 }
 
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Error::Io(e1), Error::Io(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Http(e1), Error::Http(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Utf8(e1), Error::Utf8(e2)) => e1.to_string() == e2.to_string(),
+            (Error::Json(e1), Error::Json(e2)) => e1.to_string() == e2.to_string(),
+            _ => false,
+        }
+    }
+}
+
 impl std::error::Error for Error {}
 
 /// Represents the response received when performing
@@ -92,7 +104,7 @@ impl std::error::Error for Error {}
 /// The response includes the player's UUID, username,
 /// and optionally some `ProfileProperty`s, which may
 /// represent, for example, the player's skin.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerAuthResponse {
     /// The UUID of the player.
     pub id: Uuid,
@@ -111,7 +123,7 @@ pub struct ServerAuthResponse {
 ///
 /// Note that both `value` and `signature` are base64-encoded
 /// strings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProfileProperty {
     /// The name of this profile property.
     pub name: String,
@@ -169,14 +181,14 @@ pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuth
         .get(&url)
         .send()
         .await
-        .map_err(|e| Error::Http(e))?
+        .map_err(Error::Http)?
         .text()
         .await
-        .map_err(|e| Error::Http(e))?;
+        .map_err(Error::Http)?;
 
     trace!("Authentication response: {}", string);
 
-    let response = serde_json::from_str(&string).map_err(|e| Error::Json(e))?;
+    let response = serde_json::from_str(&string).map_err(Error::Json)?;
 
     Ok(response)
 }
@@ -227,6 +239,19 @@ pub fn hexdigest(hasher: &Sha1) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::ErrorKind;
+
+    #[test]
+    fn test_error_equality() {
+        assert_eq!(
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error")),
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error"))
+        );
+        assert_ne!(
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Test error")),
+            Error::Io(io::Error::new(ErrorKind::NotFound, "Different test error"))
+        );
+    }
 
     #[test]
     fn test_hexdigest() {
