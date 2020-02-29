@@ -1,6 +1,6 @@
 [package]
 name = "mojang-api"
-version = "0.4.0"
+version = "0.5.1"
 authors = ["caelunshun <caelunshun@gmail.com>"]
 edition = "2018"
 description = "A simple library for interfacing with the Mojang API. Includes full support for async/await."
@@ -11,7 +11,7 @@ keywords = ["minecraft"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-reqwest = "=0.10.0-alpha.1"
+reqwest = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha1 = "0.6"
@@ -22,4 +22,4 @@ log = "0.4"
 
 [dev-dependencies]
 mockito = "0.20"
-tokio = "=0.2.0-alpha.6"
+tokio = "0.2"
