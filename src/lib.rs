@@ -44,6 +44,7 @@ use log::trace;
 use num_bigint::BigInt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sha1::Sha1;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -170,12 +171,7 @@ pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuth
         username, server_hash
     );
     #[cfg(test)]
-    let url = format!(
-        "{}?username={}&serverId={}",
-        mockito::server_url(),
-        username,
-        server_hash
-    );
+    let url = format!("{}/{}/{}", mockito::server_url(), username, server_hash,);
 
     let string = Client::new()
         .get(&url)
@@ -236,10 +232,151 @@ pub fn hexdigest(hasher: &Sha1) -> String {
     format!("{:x}", bigint)
 }
 
+/// Represents the response received from the client authentication endpoint.
+///
+/// The response includes an access token, used for client-side authentication,
+/// as well as information about the user which was authenticated.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClientLoginResponse {
+    /// The access token which can later be used for client-side authentication
+    /// when logging into a server.
+    pub access_token: String,
+    /// Contains information about the user which authenticated.
+    pub user: User,
+}
+
+/// Information about a user, including UUID, email, username, etc.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    /// UUID of the user.
+    pub id: Uuid,
+    /// User's email.
+    pub email: String,
+    /// Username.
+    pub username: String,
+    /// IP address from which the user was registered. The last digit is censored with an asterisk.
+    pub register_ip: String,
+    /// Where this user migrated from. (usually "minecraft.net")
+    pub migrated_from: Option<String>,
+    /// Time at which this user migrated.
+    pub migrated_at: Option<u64>,
+    /// Time at which this user was registered.
+    pub registered_at: u64,
+    /// Last time user's password was changed.
+    pub password_changed_at: Option<u64>,
+    /// User's data of birth.
+    pub date_of_birth: i64,
+    /// Whether this account is suspended.
+    pub suspended: bool,
+    /// Whether this account is blocked.
+    pub blocked: bool,
+    /// Whether this account is secured.
+    pub secured: bool,
+    /// Whether this account is migrated.
+    pub migrated: bool,
+    /// Whether this user's email has been verified.
+    pub email_verified: bool,
+    /// Whether this is a legacy user.
+    pub legacy_user: bool,
+    /// Whether this user was verified by their parent.
+    pub verified_by_parent: bool,
+    // TODO: properties
+}
+
+/// Authenticates a user, returning a client access token and metadata for the user.
+///
+/// The returned access token can later be used with `client_auth` to log in to a server.
+///
+/// # Examples
+/// ```no_run
+/// # #[tokio::main]
+/// # async fn main() -> mojang_api::Result<()> {
+/// let response: mojang_api::ClientLoginResponse = mojang_api::client_login("username", "password").await?;
+/// println!("Access token: {}", response.access_token);
+/// println!("User email: {}", response.user.email);
+/// # Ok(())
+/// # }
+/// ```
+pub async fn client_login(username: &str, password: &str) -> Result<ClientLoginResponse> {
+    #[cfg(test)]
+    let url = format!("{}/authenticate", mockito::server_url());
+    #[cfg(not(test))]
+    let url = String::from("https://authserver.mojang.com/authenticate");
+
+    let payload = json!({
+        "agent": {
+            "name": "Minecraft",
+            "version": 1
+        },
+        "username": username,
+        "password": password,
+        "requestUser": true
+    })
+    .to_string();
+
+    let client = Client::new();
+    let response = client
+        .post(&url)
+        .body(payload)
+        .send()
+        .await
+        .map_err(Error::Http)?
+        .text()
+        .await
+        .map_err(Error::Http)?;
+
+    serde_json::from_str(&response).map_err(Error::Json)
+}
+
+/// Performs client-side authentication with the given access
+/// token and server hash.
+///
+/// The access token can be obtained using `client_login`;
+/// the server hash can be computed with `server_hash`.
+///
+/// This API endpoint returns no response. If all goes well,
+/// then no error will be returned, and the client can proceed
+/// with the login process.
+///
+/// # Examples
+/// ```no_run
+/// # #[tokio::main] async fn main() -> mojang_api::Result<()> {
+/// let login = mojang_api::client_login("username", "password").await?;
+/// let server_hash = mojang_api::server_hash("", [0u8; 16], &[1]);
+///
+/// mojang_api::client_auth(&login.access_token, login.user.id, &server_hash);
+/// # Ok(())
+/// # }
+/// ```
+pub async fn client_auth(access_token: &str, uuid: Uuid, server_hash: &str) -> Result<()> {
+    #[cfg(not(test))]
+    let url = String::from("https://sessionserver.mojang.com/session/minecraft/join");
+    #[cfg(test)]
+    let url = mockito::server_url();
+
+    let payload = json!({
+        "accessToken": access_token,
+        "selectedProfile": uuid,
+        "serverId": server_hash
+    });
+
+    let client = Client::new();
+    client
+        .post(&url)
+        .body(payload.to_string())
+        .send()
+        .await
+        .map_err(Error::Http)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::ErrorKind;
+    use uuid::Uuid;
 
     #[test]
     fn test_error_equality() {
@@ -280,8 +417,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_auth() -> Result<()> {
-        use uuid::Uuid;
-
         let uuid = Uuid::new_v4();
         let username = "test_";
         let prop_name = "test_prop";
@@ -302,10 +437,10 @@ mod tests {
 
         println!("{}", serde_json::to_string(&response).unwrap());
 
-        let _m = mockito::mock("GET", "/")
+        let hash = server_hash("", [0; 16], &[0]);
+        let _m = mockito::mock("GET", format!("/{}/{}", username, hash).as_str())
             .with_body(serde_json::to_string(&response).unwrap())
             .create();
-        let hash = server_hash("", [0; 16], &[0]);
 
         let result = server_auth(&hash, username).await?;
 
@@ -320,5 +455,38 @@ mod tests {
         assert_eq!(prop.signature, prop_signature);
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_client_login() {
+        let expected_response = ClientLoginResponse {
+            access_token: String::from("test_29408"),
+            user: User {
+                id: Uuid::new_v4(),
+                email: "test@example.com".to_string(),
+                username: "test".to_string(),
+                register_ip: "127.0.0.*".to_string(),
+                migrated_from: None,
+                migrated_at: None,
+                registered_at: 0354,
+                password_changed_at: Some(249),
+                date_of_birth: 124,
+                suspended: false,
+                blocked: false,
+                secured: false,
+                migrated: false,
+                email_verified: false,
+                legacy_user: false,
+                verified_by_parent: false,
+            },
+        };
+
+        let _m = mockito::mock("POST", "/authenticate")
+            .with_body(serde_json::to_string(&expected_response).unwrap())
+            .create();
+
+        let response = client_login("test", "password").await.unwrap();
+
+        assert_eq!(response, expected_response);
     }
 }
