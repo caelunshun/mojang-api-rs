@@ -18,8 +18,10 @@
 //! ```no_run
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), mojang_api::Error> {
-//! # let shared_secret = [0; 16];
+//! # use std::net::Ipv4Addr;
+//! let shared_secret = [0; 16];
 //! # let username = "test";
+//! # let ip = Ipv4Addr::new(127, 0, 0, 1);
 //! # let public_key = &[0];
 //!
 //! // Obtain the "server hash"
@@ -30,7 +32,7 @@
 //! );
 //!
 //! // Make the API request
-//! let response = mojang_api::server_auth(&server_hash, username).await?;
+//! let response = mojang_api::server_auth(&server_hash, username, ip).await?;
 //!
 //! // Now do something with it...
 //! # Ok(())
@@ -51,6 +53,7 @@ use std::fmt::{Display, Formatter};
 use std::io;
 use std::string::FromUtf8Error;
 use uuid::Uuid;
+use std::net::IpAddr;
 
 type StdResult<T, E> = std::result::Result<T, E>;
 
@@ -153,28 +156,32 @@ pub struct ProfileProperty {
 /// ```no_run
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), mojang_api::Error> {
-/// # fn server_hash() -> String { "".to_string() }
+/// # use std::net::Ipv4Addr;
+///
+/// fn server_hash() -> String { "".to_string() }
 /// # fn username() -> String { "".to_string() }
+/// fn ip() -> IpvAddr { Ipv4Addr::new(127, 0, 0, 1) }
 /// // Obtain the server hash and username...
 /// let hash = server_hash();
 /// let username = username();
+/// let source_ip = ip();
 ///
 /// // Make the API request
-/// let response = mojang_api::server_auth(&hash, &username).await?;
+/// let response = mojang_api::server_auth(&hash, &username, &source_ip).await?;
 /// # Ok(())
 /// # }
 /// ```
-pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuthResponse> {
+pub async fn server_auth(server_hash: &str, username: &str, ip: &IpAddr) -> Result<ServerAuthResponse> {
     #[cfg(not(test))]
         let url = format!(
-        "https://sessionserver.mojang.com/session/minecraft/hasJoined?username={}&serverId={}&unsigned=false",
-        username, server_hash
+        "https://sessionserver.mojang.com/session/minecraft/hasJoined"
     );
     #[cfg(test)]
-    let url = format!("{}/{}/{}", mockito::server_url(), username, server_hash,);
+    let url = format!("{}", mockito::server_url());
 
     let string = Client::new()
         .get(&url)
+        .query(&[("username", username), ("serverId", server_hash), ("ip", &ip.to_string())])
         .send()
         .await
         .map_err(Error::Http)?
@@ -377,6 +384,7 @@ mod tests {
     use super::*;
     use std::io::ErrorKind;
     use uuid::Uuid;
+    use std::net::Ipv6Addr;
 
     #[test]
     fn test_error_equality() {
@@ -438,11 +446,15 @@ mod tests {
         println!("{}", serde_json::to_string(&response).unwrap());
 
         let hash = server_hash("", [0; 16], &[0]);
-        let _m = mockito::mock("GET", format!("/{}/{}", username, hash).as_str())
+
+        // test url encoding with the loopback addr
+        let ip = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
+        let encoded_ip = "%3A%3A1";
+        let _m = mockito::mock("GET", format!("/?username={}&serverId={}&ip={}", username, hash, encoded_ip).as_str())
             .with_body(serde_json::to_string(&response).unwrap())
             .create();
 
-        let result = server_auth(&hash, username).await?;
+        let result = server_auth(&hash, username, &ip).await?;
 
         assert_eq!(result.id, uuid);
         assert_eq!(result.name, username);
