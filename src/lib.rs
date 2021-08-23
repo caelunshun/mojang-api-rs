@@ -37,20 +37,32 @@
 //! # }
 //! ```
 
-#![forbid(unsafe_code, missing_docs, missing_debug_implementations, warnings)]
+#![forbid(unsafe_code, missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/mojang-api/0.5.1")]
 
 use log::trace;
 use num_bigint::BigInt;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sha1::Sha1;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::string::FromUtf8Error;
 use uuid::Uuid;
+
+#[cfg(not(test))]
+macro_rules! base_url {
+    ($path:literal) => {
+        concat!("https://sessionserver.mojang.com", $path)
+    };
+}
+
+#[cfg(test)]
+macro_rules! base_url {
+    ($path:literal) => {
+        &format!("{}{}", mockito::server_url(), $path)
+    };
+}
 
 type StdResult<T, E> = std::result::Result<T, E>;
 
@@ -67,10 +79,6 @@ pub enum Error {
     Http(reqwest::Error),
     /// Indicates that the UTF8 bytes failed to parse.
     Utf8(FromUtf8Error),
-    /// Indicates that the response included malformed JSON.
-    /// This could also indicate that, for example, authentication
-    /// failed, because the response would have unexpected fields.
-    Json(serde_json::Error),
 }
 
 impl Display for Error {
@@ -79,7 +87,6 @@ impl Display for Error {
             Error::Io(e) => write!(f, "{}", e)?,
             Error::Http(e) => write!(f, "{}", e)?,
             Error::Utf8(e) => write!(f, "{}", e)?,
-            Error::Json(e) => write!(f, "{}", e)?,
         }
         Ok(())
     }
@@ -91,7 +98,6 @@ impl PartialEq for Error {
             (Error::Io(e1), Error::Io(e2)) => e1.to_string() == e2.to_string(),
             (Error::Http(e1), Error::Http(e2)) => e1.to_string() == e2.to_string(),
             (Error::Utf8(e1), Error::Utf8(e2)) => e1.to_string() == e2.to_string(),
-            (Error::Json(e1), Error::Json(e2)) => e1.to_string() == e2.to_string(),
             _ => false,
         }
     }
@@ -165,26 +171,24 @@ pub struct ProfileProperty {
 /// # }
 /// ```
 pub async fn server_auth(server_hash: &str, username: &str) -> Result<ServerAuthResponse> {
-    #[cfg(not(test))]
-        let url = format!(
-        "https://sessionserver.mojang.com/session/minecraft/hasJoined?username={}&serverId={}&unsigned=false",
-        username, server_hash
-    );
-    #[cfg(test)]
-    let url = format!("{}/{}/{}", mockito::server_url(), username, server_hash,);
+    let url = reqwest::Url::parse_with_params(
+        base_url!("/session/minecraft/hasJoined"),
+        &[
+            ("username", username),
+            ("serverId", server_hash),
+            ("unsigned", "false"),
+        ],
+    )
+    .unwrap();
 
-    let string = Client::new()
-        .get(&url)
-        .send()
+    let response = reqwest::get(url)
         .await
         .map_err(Error::Http)?
-        .text()
+        .json::<ServerAuthResponse>()
         .await
         .map_err(Error::Http)?;
 
-    trace!("Authentication response: {}", string);
-
-    let response = serde_json::from_str(&string).map_err(Error::Json)?;
+    trace!("Authentication response: {:?}", response);
 
     Ok(response)
 }
@@ -299,34 +303,40 @@ pub struct User {
 /// # }
 /// ```
 pub async fn client_login(username: &str, password: &str) -> Result<ClientLoginResponse> {
-    #[cfg(test)]
-    let url = format!("{}/authenticate", mockito::server_url());
-    #[cfg(not(test))]
-    let url = String::from("https://authserver.mojang.com/authenticate");
+    let url = base_url!("/authenticate");
 
-    let payload = json!({
-        "agent": {
-            "name": "Minecraft",
-            "version": 1
-        },
-        "username": username,
-        "password": password,
-        "requestUser": true
-    })
-    .to_string();
+    #[derive(Serialize)]
+    struct Agent<'a> {
+        name: &'a str,
+        version: u32,
+    }
 
-    let client = Client::new();
-    let response = client
-        .post(&url)
-        .body(payload)
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Payload<'a> {
+        agent: Agent<'a>,
+        username: &'a str,
+        password: &'a str,
+        request_user: bool,
+    }
+
+    reqwest::Client::new()
+        .post(url)
+        .json(&Payload {
+            agent: Agent {
+                name: "Mineraft",
+                version: 1,
+            },
+            username,
+            password,
+            request_user: true,
+        })
         .send()
         .await
         .map_err(Error::Http)?
-        .text()
+        .json()
         .await
-        .map_err(Error::Http)?;
-
-    serde_json::from_str(&response).map_err(Error::Json)
+        .map_err(Error::Http)
 }
 
 /// Performs client-side authentication with the given access
@@ -350,25 +360,26 @@ pub async fn client_login(username: &str, password: &str) -> Result<ClientLoginR
 /// # }
 /// ```
 pub async fn client_auth(access_token: &str, uuid: Uuid, server_hash: &str) -> Result<()> {
-    #[cfg(not(test))]
-    let url = String::from("https://sessionserver.mojang.com/session/minecraft/join");
-    #[cfg(test)]
-    let url = mockito::server_url();
+    let url = base_url!("/session/minecraft/join");
 
-    let payload = json!({
-        "accessToken": access_token,
-        "selectedProfile": uuid,
-        "serverId": server_hash
-    });
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Payload<'a> {
+        access_token: &'a str,
+        selected_profile: Uuid,
+        server_id: &'a str,
+    }
 
-    let client = Client::new();
-    client
-        .post(&url)
-        .body(payload.to_string())
+    reqwest::Client::new()
+        .post(url)
+        .json(&Payload {
+            access_token,
+            selected_profile: uuid,
+            server_id: server_hash,
+        })
         .send()
         .await
         .map_err(Error::Http)?;
-
     Ok(())
 }
 
@@ -435,12 +446,17 @@ mod tests {
             properties: vec![prop],
         };
 
-        println!("{}", serde_json::to_string(&response).unwrap());
-
         let hash = server_hash("", [0; 16], &[0]);
-        let _m = mockito::mock("GET", format!("/{}/{}", username, hash).as_str())
-            .with_body(serde_json::to_string(&response).unwrap())
-            .create();
+        let _m = mockito::mock(
+            "GET",
+            format!(
+                "/session/minecraft/hasJoined?username={}&serverId={}&unsigned=false",
+                username, hash
+            )
+            .as_str(),
+        )
+        .with_body(serde_json::to_string(&response).unwrap())
+        .create();
 
         let result = server_auth(&hash, username).await?;
 
